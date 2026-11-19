@@ -1,0 +1,48 @@
+# ระบบถาวร น้องมะขาม - ChatGPT -> Claude -> บันทึกไฟล์
+# ฝากไว้บน Render / Railway แล้วมันจะทำงานเองทุกวัน 6 โมงเช้า
+# Meta AI (ขั้นตอนที่ 3) ยังต้องทำมือ เพราะ Meta AI ไม่มี API ให้ต่อตรง
+
+import os
+import datetime
+from openai import OpenAI
+from anthropic import Anthropic
+
+# --- ใส่ Key ในเว็บ Render ตรง Environment Variables ไม่ต้องใส่ในโค้ด ---
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+
+client_gpt = OpenAI(api_key=OPENAI_API_KEY)
+client_claude = Anthropic(api_key=ANTHROPIC_API_KEY)
+
+def step1_chatgpt(topic):
+    print(f"[1] ChatGPT กำลังคิดบท: {topic}", flush=True)
+    res = client_gpt.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": f"ช่วยคิดบทซีรีส์น้องมะขาม เรื่อง: {topic} แบบสั้นๆ อบอุ่น น่ารัก มี 3 ฉาก และมีบทพูดง่ายๆ"}]
+    )
+    return res.choices[0].message.content
+
+def step2_claude(raw):
+    print("[2] Claude กำลังเกลาภาษา", flush=True)
+    res = client_claude.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1200,
+        messages=[{"role": "user", "content": f"ช่วยเกลาบทนี้ให้น่ารักขึ้น ภาษาอบอุ่น เหมือนนิทานเด็ก อ่านง่าย:\n\n{raw}"}]
+    )
+    return res.text
+
+def run_one_episode(topic):
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    raw = step1_chatgpt(topic)
+    final = step2_claude(raw)
+    filename = f"บทน้องมะขาม_{today}.txt"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"หัวข้อ: {topic}\nวันที่: {today}\n\n{final}")
+    print(f"[3] บันทึกแล้ว: {filename}", flush=True)
+    print("--- เอาไฟล์นี้ไปวางใน Meta AI แล้วพิมพ์: ช่วยทำภาพ 4:5 + แคปชั่นจากบทนี้ ---")
+    return final
+
+if __name__ == "__main__":
+    # หัวข้อวันนี้ - เปลี่ยนตรงนี้ได้ หรือให้มันคิดเอง
+    topic = os.environ.get("TODAY_TOPIC", "น้องมะขามหลงป่าแล้วเจอเพื่อนใหม่")
+    run_one_episode(topic)
